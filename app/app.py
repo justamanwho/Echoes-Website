@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Tweet
 from dotenv import load_dotenv
+from typing import List
 import os
 
 app = FastAPI()
@@ -29,7 +30,7 @@ async def home(request: Request):
 
 class TweetCreate(BaseModel):
     tweet_data: str
-    tweet_media_ids: list[int] = []
+    tweet_media_ids: List[int] = []
 
 
 @app.get("/api/users/me")
