@@ -2,21 +2,16 @@ name: Deploy
 
 on:
   push:
-    # Can't use secrets here, so allow common branches and gate below
-    branches: [ master ]
+    branches:
+      - master   # or main — make sure it matches your real branch
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # Only run when the pushed branch matches your secret MAIN_BRANCH
-    if: ${{ github.ref == format('refs/heads/{0}', secrets.MAIN_BRANCH) }}
 
     steps:
       - name: Deploy via SSH (hard reset)
         uses: appleboy/ssh-action@v1.0.3
-        env:
-          WORK_DIR: ${{ secrets.WORK_DIR }}
-          MAIN_BRANCH: ${{ secrets.MAIN_BRANCH }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
@@ -24,23 +19,24 @@ jobs:
           script: |
             set -e
 
-            cd "$WORK_DIR"
+            cd "${{ secrets.WORK_DIR }}"
 
-            # Force the server to match GitHub exactly
-            git fetch origin "$MAIN_BRANCH"
-            git reset --hard "origin/$MAIN_BRANCH"
+            echo "Force syncing with origin/${{ secrets.MAIN_BRANCH }}..."
+            git fetch origin "${{ secrets.MAIN_BRANCH }}"
+            git reset --hard "origin/${{ secrets.MAIN_BRANCH }}"
             git clean -fdx
 
-            # Python deps (keep your current layout)
+            echo "Setting up virtual environment..."
             if [ -d .venv ]; then
               source .venv/bin/activate
             else
               python3 -m venv .venv
               source .venv/bin/activate
             fi
+
             pip install --upgrade pip
             [ -f requirements.txt ] && pip install -r requirements.txt
 
-            # Restart your service (change name if yours differs)
+            echo "Restarting echoes-website service..."
             sudo systemctl restart echoes-website
-            sudo systemctl status --no-pager --lines=5 echoes-website || true
+            sudo systemctl status echoes-website --no-pager --lines=5 || true
